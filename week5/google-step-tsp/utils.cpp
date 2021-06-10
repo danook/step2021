@@ -27,7 +27,6 @@ std::vector<City> read_input(const std::string &filename)
         cities.push_back(City(x, y));
     }
 
-    std::cout << "Input the tour from the file." << std::endl;
     return cities;
 }
 
@@ -46,12 +45,11 @@ void print_tour(const std::string &filename, const std::vector<int> &tour)
     {
         ofs << id << std::endl;
     }
-    std::cout << "Output the tour to the file." << std::endl;
     return;
 }
 
 // Check if every city is in |tour| once.
-bool check_tour(std::vector<int> tour, int num_of_cities)
+bool check_tour(std::vector<int> tour, const int &num_of_cities)
 {
     if (tour.size() != num_of_cities)
         return false;
@@ -62,4 +60,33 @@ bool check_tour(std::vector<int> tour, int num_of_cities)
             return false;
     }
     return true;
+}
+
+// Returns a two-dimensional vector of distances between two cities.
+// |cities|: a vector of coordinate of cities.
+std::vector<std::vector<double>> get_distances(const std::vector<City> &cities)
+{
+    int num_of_cities = cities.size();
+    std::vector<std::vector<double>> distances =
+        std::vector<std::vector<double>>(num_of_cities, std::vector<double>(num_of_cities, 0.0));
+    for (int i = 0; i < num_of_cities; ++i)
+    {
+        for (int j = 0; j < num_of_cities; ++j)
+        {
+            distances[i][j] = std::sqrt(
+                (cities[i].x - cities[j].x) * (cities[i].x - cities[j].x) + (cities[i].y - cities[j].y) * (cities[i].y - cities[j].y));
+        }
+    }
+    return distances;
+}
+
+// Returns the score(total distance) of |tour|.
+double get_score(const std::vector<int> &tour, const std::vector<std::vector<double>> &distances)
+{
+    double score = 0.0;
+    for (int i = 0; i < tour.size(); ++i)
+    {
+        score += distances[tour[i]][tour[(i + 1) % tour.size()]];
+    }
+    return score;
 }

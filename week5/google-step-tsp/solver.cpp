@@ -1,213 +1,161 @@
 #include "utils.cpp"
 
-// Returns a two-dimentional vector of distances between two cities.
-// |cities|: a vector of coordinate of cities.
-std::vector<std::vector<double>> get_distances(const std::vector<City> &cities)
+// Depth first search to find the best |depth|-length tour from the |present|.
+// Returns a pair of tour and the score of the tour.
+// NOTE: The order of elements in returning vector is reversed;
+// If visiting order is 0 -> 2 -> 1, the vector is {1, 2, 0}.
+std::pair<std::vector<int>, double> dfs(const int &present, const std::vector<std::vector<double>> &distances, const std::vector<bool> &has_visited, const int &depth)
 {
-    int num_of_cities = cities.size();
-    std::vector<std::vector<double>> distances =
-        std::vector<std::vector<double>>(num_of_cities, std::vector<double>(num_of_cities, 0.0));
-    for (int i = 0; i < num_of_cities; ++i)
+
+    if (depth == 0)
     {
-        for (int j = 0; j < num_of_cities; ++j)
+        return make_pair(std::vector<int>{present}, 0.0);
+    }
+
+    int num_of_cities = distances.size();
+    std::vector<bool> new_has_visited(has_visited);
+
+    new_has_visited[present] = true;
+    std::pair<std::vector<int>, double> best_tour_and_score;
+    best_tour_and_score.second = 1e9;
+
+    for (int next = 0; next < num_of_cities; ++next)
+    {
+        if (!new_has_visited[next])
         {
-            distances[i][j] = std::sqrt(
-                (cities[i].x - cities[j].x) * (cities[i].x - cities[j].x) + (cities[i].y - cities[j].y) * (cities[i].y - cities[j].y));
+            std::pair<std::vector<int>, double> tour_and_score = dfs(next, distances, new_has_visited, depth - 1);
+            tour_and_score.second += distances[present][next];
+            if (tour_and_score.second < best_tour_and_score.second)
+            {
+                best_tour_and_score = tour_and_score;
+            }
         }
     }
-    return distances;
-}
 
-// Returns the score(total distance) of |tour|.
-double get_score(const std::vector<int> &tour, const std::vector<std::vector<double>> &distances)
-{
-    double score = 0.0;
-    for (int i = 0; i < tour.size(); ++i)
+    // Not renewed; no unvisited cities left.
+    if (best_tour_and_score.second == 1e9)
     {
-        score += distances[tour[i]][tour[(i + 1) % tour.size()]];
+        return make_pair(std::vector<int>{present}, distances[present][0]);
     }
-    return score;
+
+    best_tour_and_score.first.push_back(present);
+    return best_tour_and_score;
 }
 
 // Gets a tour using greedy algorithm.
+// From each city, moves to the nearest unvisited from the city.
 std::vector<int> get_greedy_tour(const std::vector<std::vector<double>> &distances)
 {
     int num_of_cities = distances.size();
     std::vector<bool> has_visited(num_of_cities, false);
     std::vector<int> greedy_tour;
 
-    int city = 0;
+    // Starts from city 0.
+    int present = 0;
+    int num_of_unvisited_cities = num_of_cities - 1;
+    double score = 0.0;  // To check if the score is calculated correctly in dfs().
+
+    greedy_tour.push_back(present);
+    has_visited[present] = true;
+
     while (true)
     {
-        has_visited[city] = true;
-        greedy_tour.push_back(city);
-
-        // Find the nearest unvisited city from |city|.
-        int nearest = 0;
-        double nearest_distance = 1e9;
-
-        for (int next = 0; next < num_of_cities; ++next)
-        {
-            if ((!has_visited[next]) && distances[city][next] < nearest_distance)
-            {
-                nearest = next;
-                nearest_distance = distances[city][next];
-            }
+        std::pair<std::vector<int>, double> best_tour_and_score = dfs(present, distances, has_visited, 2);
+           
+        for (int i = best_tour_and_score.first.size() - 2; i >= 0; --i){
+            greedy_tour.push_back(best_tour_and_score.first[i]);
+            has_visited[best_tour_and_score.first[i]] = true;
         }
+        present = best_tour_and_score.first.front();
+        
+        num_of_unvisited_cities -= (best_tour_and_score.first.size() - 1);
+        score += best_tour_and_score.second;
 
-        if (nearest_distance == 1e9)
-        { // When visited all cities (nearest_distance is not renewed)
-            break;
-        }
+        // Has visited all the cities
+        if (num_of_unvisited_cities == 0) break;
 
-        city = nearest;
     }
-
+    
+    // assert(abs(score - get_score(greedy_tour, distances)) < 1e-4);
+    // assert(check_tour(greedy_tour, num_of_cities));
     return greedy_tour;
 }
 
-// Cuts |tour| into fragments.
-// Example: tour = {2, 1, 3, 5, 4}, position_to_cut = {0, 3}
-// -> returns {{2}, {1, 3, 5}, {4}}
-std::vector<std::vector<int>> cut_tour(const std::vector<int> &tour, std::vector<int> positions_to_cut)
+// When two edges (tour[index1]->tour[index1+1] and tour[index2]->tour[index2+1]) are crossing,
+// returns a tour made by uncrossing the two edges.
+// Otherwise, returns the given tour.
+// NOTE: index1 must be smaller than index2.
+std::vector<int> uncross_tour(const std::vector<int> tour, const int &index1, const int &index2, const std::vector<std::vector<double>> &distances)
 {
-    std::vector<std::vector<int>> tour_fragments(positions_to_cut.size(), std::vector<int>{});
-    std::sort(positions_to_cut.begin(), positions_to_cut.end());
-    for (int i = 0; i < positions_to_cut.size(); ++i)
+    double length_of_edges = distances[tour[index1]][tour[(index1 + 1) % tour.size()]] + distances[tour[index2]][tour[(index2 + 1) % tour.size()]];
+    double length_of_rearranged_edges = distances[tour[index1]][tour[index2]] + distances[tour[(index1 + 1) % tour.size()]][tour[(index2 + 1) % tour.size()]];
+    std::vector<int> new_tour(tour);
+
+    if (length_of_rearranged_edges < length_of_edges) // When two edges are crossed
     {
-        for (int idx = positions_to_cut[i]; idx != positions_to_cut[(i + 1) % positions_to_cut.size()]; idx = (idx + 1) % tour.size())
-        {
-            tour_fragments[i].push_back(tour[idx]);
-        }
-    }
-    return tour_fragments;
-}
-
-// DFS to find the shortest tour that can be made by arrranging fragments.
-// Returns a pair of the order to arrange fragments and the length of the tour.
-std::pair<std::deque<int>, double> fragments_dfs(int current, const std::vector<std::vector<int>> &tour_fragments, std::vector<bool> has_visited, const std::vector<std::vector<double>> &distances)
-{
-
-    double min_length = 1e9;
-    std::deque<int> shortest_tour;
-    has_visited[current] = true;
-
-    for (int next = 0; next < tour_fragments.size(); ++next)
-    {
-        if (!has_visited[next])
-        {
-
-            std::pair<std::deque<int>, double> tour = fragments_dfs(next, tour_fragments, has_visited, distances);
-            tour.second += distances[tour_fragments[current].back()][tour_fragments[next].front()];
-
-            if (tour.second < min_length)
-            {
-                shortest_tour = tour.first;
-                min_length = tour.second;
-            }
-        }
+        std::reverse(new_tour.begin() + index1 + 1, new_tour.begin() + index2 + 1);
     }
 
-    if (min_length == 1e9)
-    { // Not renewed; End of the dfs.
-        min_length = distances[tour_fragments[current].back()][tour_fragments[0].front()];
-    }
-
-    shortest_tour.push_front(current);
-    return std::make_pair(shortest_tour, min_length);
-}
-
-// Find a way to arrange fragments so that the tour will become shortest.
-std::vector<int> arrange_fragments(std::vector<std::vector<int>> tour_fragments, const std::vector<std::vector<double>> &distances)
-{
-    std::vector<bool> has_visited = std::vector<bool>(tour_fragments.size());
-    std::pair<std::deque<int>, double> tour = fragments_dfs(0, tour_fragments, has_visited, distances);
-    std::vector<int> answer;
-    while (!tour.first.empty())
-    {
-        int idx = tour.first.back();
-        tour.first.pop_back();
-        answer.push_back(idx);
-    }
-    assert(check_tour(answer, tour_fragments.size()));
-    return answer;
+    // assert(get_score(new_tour, distances) <= get_score(tour, distances));
+    return new_tour;
 }
 
 // Calculates the shortest tour to visit all the cities and return to the start.
-// |cities|: a vector of coordinate of cities
+// |time_in_second|: Time to execute the function.
 // If the shortest tour is 0 -> 2 -> 1, returns std::vector{0, 2, 1}.
-std::vector<int> get_the_shortest_tour(const std::vector<std::vector<double>> &distances, double time_in_second = 10)
+std::vector<int> get_the_shortest_tour(const std::vector<std::vector<double>> &distances, const double &time_in_second)
 {
     int num_of_cities = distances.size();
 
+    std::random_device seed_gen;
+    std::mt19937 random_engine(seed_gen());
+
     // Apply greedy algorithm
     std::vector<int> shortest_tour = get_greedy_tour(distances);
-    std::clock_t start = std::clock();
+    std::cout << "Score(greedy): " << get_score(shortest_tour, distances) << std::endl;
 
-    while ((std::clock() - start) / CLOCKS_PER_SEC <= time_in_second)
+    // Choose two edges at random, and uncross them if they are crossed.
+    std::time_t start = std::time(NULL);
+    while ((std::time(NULL) - start) < time_in_second)
     {
-
-        std::vector<int> city_indices(num_of_cities);
-        std::iota(city_indices.begin(), city_indices.end(), 0);
-        /*
-        std::sort(city_indices.begin(), city_indices.end(),
-                  [&shortest_tour, &distances, &num_of_cities](int a, int b) {
-                      return distances[shortest_tour[a]][shortest_tour[(a + 1) % num_of_cities]] > distances[shortest_tour[b]][shortest_tour[(b + 1) % num_of_cities]];
-                  });
-        */
-        std::random_device seed_gen;
-        std::mt19937 random_engine(seed_gen());
-        std::shuffle(city_indices.begin(), city_indices.end(), random_engine);
-
-        int num_of_fragments = std::min(10, num_of_cities);
-        std::vector<int> positions_to_cut = std::vector<int>(num_of_fragments);
-        for (int position = 0; position < num_of_fragments; ++position)
+        // Choose index1 and index2 at random.
+        int index1, index2;
+        do
         {
-            positions_to_cut[position] = (city_indices[position] + 1) % num_of_cities;
-        }
+            index1 = random_engine() % num_of_cities;
+            index2 = random_engine() % num_of_cities;
+        } while (index1 == index2);
 
-        std::vector<std::vector<int>> tour_fragments = cut_tour(shortest_tour, positions_to_cut);
-        std::vector<int> fragments_order = arrange_fragments(tour_fragments, distances);
-
-        std::vector<int> new_tour;
-        for (int fragment : fragments_order)
-        {
-            for (int city : tour_fragments[fragment])
-            {
-                new_tour.push_back(city);
-            }
-        }
-
-        shortest_tour.swap(new_tour);
-        assert(check_tour(shortest_tour, num_of_cities));
+        if (index1 > index2) std::swap(index1, index2); // index1 has to be smaller than index2.
+        shortest_tour = uncross_tour(shortest_tour, index1, index2, distances);
     }
 
+    // assert(check_tour(shortest_tour, num_of_cities));
     return shortest_tour;
 }
 
 void test()
 {
+    // Input
     std::vector<City> cities = read_input("input_0.csv");
     assert(cities.size() == 5);
     assert(cities[1].x == 1222.0393903625825);
     assert(cities[1].y == 229.56212316547953);
 
-    std::vector<std::vector<double>> distances = get_distances(cities);
-    assert(distances[0][1] == distances[1][0]);
+    // Calculating distances
+    std::vector<std::vector<double>> distances = get_distances({City(0, 0), City(0, 1), City(1, 0), City(1, 1)});
+    assert(abs(distances[0][3] * distances[0][3] - 2.0) < 1e-4);
     assert(distances[1][1] == 0);
-    /*
-    std::vector<int> greedy_tour = get_greedy_tour(distances);
-    assert(check_tour(greedy_tour, 5));
 
-    std::vector<int> test_tour = {2, 3, 1, 5, 4, 6};
-    std::vector<std::vector<int>> test_cut_tour = {{2, 3, 1}, {5, 4, 6}};
-    assert(cut_tour(test_tour, std::vector{0, 3}) == test_cut_tour);
-    */
+    // Test for dfs()
+    std::pair<std::vector<int>, double> tour_and_score = dfs(0, distances, std::vector<bool>(4, false), 3);
+    assert((tour_and_score.second - 3.0) < 1e-4);
 
-    std::vector<int> shortest_tour = get_the_shortest_tour(distances);
-    assert(check_tour(shortest_tour, 5));
-
-    print_tour("output_0.csv", shortest_tour);
+    // Test for uncross_tour()
+    std::vector<int> uncrossed_tour = uncross_tour({0, 1, 2, 3}, 1, 3, distances);
+    std::vector<int> answer = std::vector<int>{0, 1, 3, 2};
+    assert(uncrossed_tour == answer);
+    
 }
 
 int main(int argc, char *argv[])
@@ -217,17 +165,13 @@ int main(int argc, char *argv[])
         std::cerr << "Designate the input and output files." << std::endl;
         std::exit(1);
     }
-    // test();
-
+    //test();
+    
     std::vector<City> cities = read_input(argv[1]);
     std::vector<std::vector<double>> distances = get_distances(cities);
-    std::vector<int> shortest_tour = get_the_shortest_tour(distances, 10.0);
-    std::vector<int> greedy_tour = get_greedy_tour(distances);
+    std::vector<int> shortest_tour = get_the_shortest_tour(distances, 300);
     print_tour(argv[2], shortest_tour);
-
     std::cout << "Score: " << get_score(shortest_tour, distances) << std::endl;
-    std::cout << "Score (greedy): " << get_score(greedy_tour, distances) << std::endl;
-
-    system("pause");
+    
     std::exit(0);
 }
