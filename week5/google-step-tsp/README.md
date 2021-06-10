@@ -1,261 +1,59 @@
-# Google STEP 2021: Travelling Salesman Problem Challenges
+# Google STEP Week5 Homework
+## 概要
+Traveling Salesperson Problemを解くプログラムを作成しました。初めに、現在いる町から最短の道のりで2つ先の町まで行く」ことを貪欲的に繰り返すことで暫定のルートを求め、そのルートについて、「交差している二辺があったら交差をほどく」ことを繰り返すことで、最善のルートを探しました。
 
-Originally By: [Hayato Ito](https://github.com/hayatoito) (hayato@google.com)  
-2020, 2021 Versions By: [Hugh O'Cinneide](https://github.com/hkocinneide)
-(hughoc@google.com)
-
-## Quick Links
-
-- [Scoreboard]
-
-[scoreboard]:
-  https://docs.google.com/spreadsheets/d/1ecQoToBBtiEXSqWiLMeuUVaiAxZlhDZepP22UsiClww/edit?usp=sharing
-[github issues]: https://github.com/hayatoito/google-step-tsp/issues
-
-## Problem Statement
-
-In this assignment, you will design an algorithm to solve a fundamental problem
-faced by every travelling salesperson, called _Travelling Salesman Problem_
-(TSP). I’ll explain TSP in the onsite class. TSP is very famous problem. See
-[Wikipedia](http://en.wikipedia.org/wiki/Travelling_salesman_problem). You can
-understand the problem without any difficulties.
-
-Quoted from
-[Wikipedia](http://en.wikipedia.org/wiki/Travelling_salesman_problem):
-
-> The travelling salesman problem (TSP) asks the following question: Given a
-> list of cities and the distances between each pair of cities, what is the
-> shortest possible route that visits each city exactly once and returns to the
-> origin city?
-
-## Assignment
-
-The assignment is hosted on GitHub,
-[https://github.com/hayatoito/google-step-tsp](https://github.com/hayatoito/google-step-tsp).
-
-You can download the assignment by `git clone`:
-
-```shellsession
-git clone https://github.com/hayatoito/google-step-tsp
+## 実行方法
+solver.cpp, utils.cpp, utils.hppと入出力ファイルは同一ディレクトリ内に置く必要があります。
+```
+g++ solver.cpp -o solver.exe
+```
+でコンパイルをしたのち、以下のコマンドでexeファイルを実行してください。
+```
+solver.exe (input_file_name) (output_file_name)
 ```
 
-The repository includes sample scripts written in Python 3, rather than in
-Python 2. It’s your responsibility to install Python 3 if you want to run the
-scripts, though running the scripts is not mandatory.
+## 出力
+`Score(greedy)`: 貪欲法のみで得られたルートのスコア  
+`Score`: 交差をほどくことで改善したルートのスコア
 
-There are 7 challenges of TSP in the assignment, from N = 5 to N = 2048:
+## 実行結果
+得られたスコアは以下のようになった。  
+Visualier URL: https://danook.github.io/step2021/week5/google-step-tsp/visualizer/build/default/index.html
 
-| Challenge   | N (= the number of cities) | Input file  | Output file  |
-| ----------- | -------------------------: | ----------- | ------------ |
-| Challenge 0 |                          5 | input_0.csv | output_0.csv |
-| Challenge 1 |                          8 | input_1.csv | output_1.csv |
-| Challenge 2 |                         16 | input_2.csv | output_2.csv |
-| Challenge 3 |                         64 | input_3.csv | output_3.csv |
-| Challenge 4 |                        128 | input_4.csv | output_4.csv |
-| Challenge 5 |                        512 | input_5.csv | output_5.csv |
-| Challenge 6 |                       2048 | input_6.csv | output_6.csv |
+|   |Score(greedy)|Score|
+|---|---|---|
+|N=5|3418.1|3418.1|
+|N=8|4428.09|3778.72|
+|N=16|6097.87|4494.42|
+|N=64|10625.4|8499.15|
+|N=128|14896.3|11766.8|
+|N=512|28646.5|22091.3|
+|N=2048|57654.8|43949.4|
 
-See _Data Format Specification_ section to know the format of input and output
-files.
+## アルゴリズム
+### 2つ先までの貪欲法
+深さ優先探索で2個先までのルートをすべて列挙し、その中からスコアが最善のものを探します。
 
-### Your tasks
+### 交差部分を探す
+二辺をランダムに選び、その二辺が交差しているかを調べ、もし交差している場合にはその交差がなくなるようにルートを組み替えるということを繰り返しています。
 
-- Write a program, solving each TSP by designing and implementing an algorithm.
-- Overwrite each output file, `output_{0-6}.csv`, with the output of your
-  program.
-- Enter the _path length_ of your output in the [scoreboard], for each
-  challenge. Needless to say, a shorter path is better then a longer path.
+たとえば、下図の左のようなルートで、赤い二辺を選んだ場合を考えます。また、この二辺を組み替えた右側のようなルートを考えます。このとき、
 
-### Visualizer
+(右側のルートにおける赤い二辺の長さの和) < (左側のルートにおける赤い二辺の長さの和)
 
-The demo page of the visualizer is
-[here](https://hkocinneide.github.io/google-step-tsp/visualizer/build/default/).
+であれば、左側のルートにおいて赤い二辺は交差しているということであり、交差がなくなるように(=右側のように)組み替えることで、ルートの長さを短くすることができます。組み替えるにあたっては、青い部分のルートを逆順にすればよいです。
 
-The assignment includes a helper Web page,
-`visualizer/build/default/index.html`, which visualizes your solutions. You need
-to run a HTTP server on your local machine to access the visualizer. Any HTTP
-server is okay. If you are not sure how to run a web server, use the following
-command to run the HTTP server. Make sure that you are in the top directory of
-the assignment before running the command.
+一方左側の方が長さが短ければ、赤い二辺は交差していないので、組み替える必要はありません。
 
-```shellsession
-python -m http.server # For Python 3
-python -m SimpleHTTPServer 8000 # If you don’t want to install Python 3
-```
+![交差の組み替え](document_fig1.png)
 
-Then, open a browser and navigate to the
-[http://localhost:8000/visualizer/build/default/](http://localhost:8000/visualizer/build/default/).
+この処理は、反復回数は指定せず、300秒間で反復できるだけ行っています(そのため、実行環境によってスコアが変わるかもしれません)。
 
-Visualizer was only tested by Google Chrome. Using the visualizer is up-to you.
-You don’t have to use the visualizer to finish the assignment. The visualizer is
-provided for the purpose of helping you understand the problem.
+## 実装の工夫
+* 一つのファイルだと長くなったため、ファイルの入出力などアルゴリズムの本質に関係ない部分はutils.hpp, utils.cppとして別ファイルにした。
+* 時間・空間計算量を減らすため引数はすべて参照渡しとしています。その代わり、constをつけて関数内で引数の値を変えられないようにしています。
 
-See
-[GitHub Help](https://help.github.com/articles/configuring-a-publishing-source-for-github-pages/)
-to know how to enable GitHub pages on your repository.
-
-## Data Format Specification
-
-### Input Format
-
-The input consists of `N + 1` lines. The first line is always `x,y`. It is
-followed by `N` lines, each line represents an i-th city’s location, point
-`xi,yi` where `xi`, `yi` is a floating point number.
-
-```
-x,y
-x_0,y_0
-x_1,y_1
-…
-x_N-1,y_N-1
-```
-
-### Output Format
-
-Output has `N + 1` lines. The first line should be “index”. It is followed by
-`N` lines, each line is the index of city, which represents the visitation
-order.
-
-```
-index
-v_0
-v_1
-v_2
-…
-v_N-1
-```
-
-### Example (Challenge 0, N = 5)
-
-Input Example:
-
-```
-x,y
-214.98279057984195,762.6903632435094
-1222.0393903625825,229.56212316547953
-792.6961393471055,404.5419583098643
-1042.5487563564207,709.8510160219619
-150.17533883877582,25.512728869805677
-```
-
-Output (Solution) Example:
-
-```
-index
-0
-2
-3
-1
-4
-```
-
-These formats are requirements for the visualizer, which can take only properly
-formatted CSV files as input.
-
-## Schedule
-
-### The class begins: 2021-06-04 (Fri) 6:30pm (JST)
-
-I'll explain the "TSP" assignment.
-
-Action items on Friday:
-
-1.  Fill out your name in the first column of the [Scoreboard]:
-
-2.  Fork this repository into your own GitHub.
-
-### Coding: From: 2021-06-04 (Fri) 8:00pm - To: 2021-06-11 (Fri) 5:00pm
-
-Until next Friday, you are expected to improve your algorithm and enter
-the score in the [scoreboard] manually for each challenge. You can update the
-score as many times as needed. I highly recommend you to update your score
-whenever you can find a shorter path.
-
-Feel free to submit, or continue working on this assignment past next Friday. I
-will go over the results in class next week, so if you want to show off how well
-you did on the leaderboard, submit by classtime!
-
-## What’s included in the assignment
-
-To help you understand the problem, there are some sample scripts / resources in
-the assignment, including, but not limited to:
-
-- `solver_random.py` - Sample stupid solver. You never lose to this stupid one.
-- `sample/random_{0-6}.csv` - Sample output files by solver_random.py.
-- `solver_greedy.py` - Sample solver using the greedy algorithm. You should beat
-  this definitely.
-- `sample/greedy_{0-6}.csv` - Sample output files by solver_greedy.py.
-- `sample/sa_{0-6}.csv` - Yet another sample output files. I expect all of you
-  will beat this one too. The solver itself is not included intentionally.
-- `output_{0-6}.csv` - You should overwrite these files with your program's
-  output.
-- `output_verifier.py` - Try to validate your output files and print the path
-  length.
-- `input_generator.py` - Python script which was used to create input files,
-  `input_{0-6}.csv`
-- `visualizer/` - The directory for visualizer.
-
-Details are intentionally omitted here. It is your responsibility to understand
-the contents of the repository.
-
-## Code of Conduct
-
-- Since we are competing for the best algorithm, please do not cheat:
-- You can get an assistance only from other STEP students, mentors, or
-  lecturers..
-- Don't get any assistance from any other people (e.g. your friends, professors,
-  etc).
-- Use your best judgment when using third party libraries. If it will be
-  non-trivial for a reviewer to understand the library, it may be doing too
-  much work that you could be learning from.
-- It is okay to use built-in libraries provided by programming languages, of
-  course.
-
-## Tips for Development
-
-The following tips might be helpful:
-
-- Commit often, and push often. Small commits are easy to review, and are
-  unlikely to conflict others' changes.
-
-- Your code should be consistency well formatted. Please make sure to use
-  appropriate code formatter, if you are not in confident. Don't try to format
-  your code by yourself if a tool can do that.
-
-## FAQ
-
-This FAQ includes the questions and the answers in the past years, as is. Some
-Q/A might be obsolete for this year.
-
-- Q. I found a typo in this document.
-
-- A. Please feel free to send a
-  [pull request](https://help.github.com/articles/using-pull-requests/), as a
-  practice, or file an issue at [GitHub Issues] if you are not confident using
-  git.
-
-- Q. Do I have to use the same code for every challenge?
-
-- A. No.
-
-- Q. Is there any limitation of machine resources I can use? Can I use multiple
-  machines? Can I run my algorithm 24 hours?
-
-- A. No limitation at all. You can use any machine resources you have.
-
-- Q. It seems that this document and the scoreboard are publicly viewable. Is
-  this intentional?
-
-- A. Yes. I am a fan of transparency. If you have any concerns, please let me
-  know that. I’ll honor your preference. Don’t enter any confidential
-  information.
-
-- Q. Can I look other student's repository?
-
-- A. Yes. Don't try to hide anything. Eveything should be open. It's fine to
-  exchange ideas between students, or borrow their ideas.
-
-## Acknowledgments
-
-This assignment is heavily inspired by
-[Discrete Optimization Course on Coursera](https://www.coursera.org/learn/discrete-optimization).
+## その他疑問点など
+* テストケースを作るのが難しかったです。得られるのが必ずしも最善のルートとは限らないので、「スコアが正しく計算できているか」「全ての頂点をちょうど一度ずつ訪れているか」「交差をほどくことで確かにスコアが改善しているか」の確認くらいしかできていません。これだけだと不十分な気がしているのですが、他にどのようなテストケースの作り方があるでしょうか。
+    * また、その結果としてテストが各関数内に散逸してしまったので、可読性が良くない気がしているのですが、これも改善策はあるでしょうか。
+* 2つ先までの貪欲法だと、交差部分の処理前は通常の貪欲法よりスコアが悪いのですが、交差部分を処理して改善すると、通常の貪欲法より良い出力が得られることが多かったので、こちらの方法を採用しました。理由はよく分かりません。
