@@ -17,7 +17,7 @@ gcc -O3 -o malloc_challenge.bin main.c improved_malloc.c simple_malloc.c -lm
 ```
 
 ## best-fit, worst-fitの実装
-malloc.cの128~132行目のfirst-fitを、134~156行目のbest-fitに書き換えた。領域を確保する際に、すべての空きスロットを見て、確保サイズより大きい中で最もサイズの小さい領域を探している。150行目の不等号"<"を">"にすることでworst-fitとなる。
+malloc.cの128\~132行目のfirst-fitを、134\~156行目のbest-fitに書き換えた。領域を確保する際に、すべての空きスロットを見て、確保サイズより大きい中で最もサイズの小さい領域を探している。150行目の不等号"<"を">"にすることでworst-fitとなる。
 
 ## improved_malloc.cにおける工夫
 improved_malloc.cでは、best-fitを用いることに加え、さらに以下のような工夫をした。
@@ -26,12 +26,12 @@ improved_malloc.cでは、best-fitを用いることに加え、さらに以下�
 my_add_to_free_list()が呼ばれた際に、新しくfree listに加えたスロットと隣接(右または左で)する空スロットがないか探し、ある場合はそれらを連結して1つのスロットとすることでメモリ使用率と時間を改善することを目指した。連結する際には、左側のスロットのサイズを右側のスロットのサイズ分だけ増やし、右側のスロットをfree listから取り除くという処理を行っている。
 
 ### metadataの双方向リスト化
-空スロット連結を実装するにあたり、片方向リストでの実装を難しく感じたので、metadataを双方向リストとした。(片方向リストの場合、my_remove_from_free_listにprevを引数として渡さなくてはならず、improved_malloc.cの105~128行目でmetadata_to_mergeに対するprevを保持して…というあたりで良く分からなくなった)
+空スロット連結を実装するにあたり、片方向リストでの実装を難しく感じたので、metadataを双方向リストとした。(片方向リストの場合、my_remove_from_free_listにprevを引数として渡さなくてはならず、improved_malloc.cの105\~128行目でmetadata_to_mergeに対するprevを保持して…というあたりで良く分からなくなった)
 
 
 ## 結果
 **first-fit**: 元々のsimple_malloc.cをそのまま写した場合  
-**best-fit**: malloc.cの128~132行目のfirst-fitを、134~156行目のbest-fitに書き換えた場合  
+**best-fit**: malloc.cの128\~132行目のfirst-fitを、134\~156行目のbest-fitに書き換えた場合  
 **worst-fit**: best-fitの不等号を逆にしてworst-fitとした場合  
 **bidirectional list**: improved_malloc.cで、空スロット連結処理部分(105~128行目)を削除した場合  
 **improved**: improved_malloc.c(best-fit＋双方向リスト化＋空スロット連結)  
