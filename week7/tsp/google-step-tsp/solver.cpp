@@ -58,7 +58,7 @@ std::vector<int> &uncross_edges(std::vector<int> &tour, const int &index1, const
     return tour;
 }
 
-std::vector<int> &two_opt(std::vector<int> &tour, const std::vector<std::vector<double>> &distances, const double &time_in_second)
+std::vector<int> &two_opt(std::vector<int> &tour, const std::vector<std::vector<double>> &distances, const double &time_limit)
 {
     int num_of_cities = distances.size();
 
@@ -67,7 +67,7 @@ std::vector<int> &two_opt(std::vector<int> &tour, const std::vector<std::vector<
 
     // Choose two edges at random, and uncross them if they are crossed.
     std::time_t start = std::time(NULL);
-    while ((std::time(NULL) - start) < time_in_second)
+    while ((std::time(NULL) - start) < time_limit)
     {
         // Choose index1 and index2 at random.
         std::pair<int, int> indices = gen_random_indices(num_of_cities, random_engine);
@@ -82,49 +82,40 @@ std::vector<int> &two_opt(std::vector<int> &tour, const std::vector<std::vector<
     return tour;
 }
 
-struct InsertPlace
+double get_score_diff(const int &edge_end, const bool &reverses, const std::vector<int> &main_tour, const std::vector<int> &subsequence, const std::vector<std::vector<double>> &distances)
 {
-    int index;
-    bool reverses;
-    InsertPlace(int index0, bool reverses0)
+    int edge_start = (edge_end + main_tour.size() - 1) % main_tour.size();
+    if (reverses)
     {
-        index = index0;
-        reverses = reverses0;
+        return distances[subsequence.back()][main_tour[edge_start]] +
+               distances[subsequence.front()][main_tour[edge_end]] -
+               distances[main_tour[edge_start]][main_tour[edge_end]];
     }
-};
-
-InsertPlace get_place_to_insert_subsequence(const std::vector<int> &main_tour, const std::vector<int> &subsequence, const std::vector<std::vector<double>> &distances)
-{
-    int main_tour_size = main_tour.size();
-    int min_edge_start = -1;
-    int min_edge_end = -1;
-    double min_distance = -1;
-    bool reverses_subsequence = false;
-
-    // Finds a edge s.t. distance[tour[index1]][edge.from] + distance[tour[index2]][edge.to] is the shortest.
-    for (int edge_start = 0; edge_start < main_tour_size; ++edge_start)
+    else
     {
-        int edge_end = (edge_start + 1) % main_tour_size;
-        if (min_edge_start == -1 ||
-            (distances[subsequence.back()][main_tour[edge_start]] + distances[subsequence.front()][main_tour[edge_end]] - distances[main_tour[edge_start]][main_tour[edge_end]] < min_distance))
-        {
-            min_edge_start = edge_start;
-            min_edge_end = edge_end;
-            min_distance = distances[subsequence.back()][main_tour[min_edge_start]] + distances[subsequence.front()][main_tour[min_edge_end]] - distances[main_tour[min_edge_start]][main_tour[min_edge_end]];
-            reverses_subsequence = true;
-        }
-
-        if (min_edge_start == -1 ||
-            (distances[subsequence.front()][main_tour[edge_start]] + distances[subsequence.back()][main_tour[edge_end]] - distances[main_tour[edge_start]][main_tour[edge_end]] < min_distance))
-        {
-            min_edge_start = edge_start;
-            min_edge_end = edge_end;
-            min_distance = distances[subsequence.front()][main_tour[min_edge_start]] + distances[subsequence.back()][main_tour[min_edge_end]] - distances[main_tour[min_edge_start]][main_tour[min_edge_end]];
-            reverses_subsequence = false;
-        }
+        return distances[subsequence.front()][main_tour[edge_start]] +
+               distances[subsequence.back()][main_tour[edge_end]] -
+               distances[main_tour[edge_start]][main_tour[edge_end]];
     }
-    return InsertPlace(min_edge_end, reverses_subsequence);
 }
+
+void cut_out_subsequence(const std::vector<int> &tour, std::vector<int> &main_tour, std::vector<int> &subsequence, const std::pair<int, int> &indices)
+{
+    int num_of_cities = tour.size();
+    for (int i = 0; i < num_of_cities; ++i)
+    {
+        if (i == indices.first)
+        {
+            for (; i < indices.second; ++i)
+            {
+                subsequence.push_back(tour[i]);
+            }
+        }
+        main_tour.push_back(tour[i]);
+    }
+    return;
+}
+
 // NOTE: index1 must be smaller than index2.
 std::vector<int> insert_subsequence(const std::vector<int> &main_tour, const std::vector<int> &subsequence, const int &min_edge_end, const bool &reverses_subsequence)
 {
@@ -156,44 +147,54 @@ std::vector<int> insert_subsequence(const std::vector<int> &main_tour, const std
         new_tour.push_back(main_tour[i]);
     }
 
-    // assert(check_tour(new_tour, num_of_cities));
+    assert(check_tour(new_tour, new_tour.size()));
     return new_tour;
 }
 
-void cut_out_subsequence(const std::vector<int> &tour, std::vector<int> main_tour, std::vector<int> subsequence, std::pair<int, int> indices)
+double get_transition_probability(const std::time_t &start_time, const double &time_limit, const double &score_diff)
 {
-    int num_of_cities = tour.size();
-    for (int i = 0; i < num_of_cities; ++i)
-    {
-        if (i == indices.first)
-        {
-            for (; i < indices.second; ++i)
-            {
-                subsequence.push_back(tour[i]);
-            }
-        }
-        main_tour.push_back(tour[i]);
-    }
-    return;
+    std::time_t current_time = std::time(NULL);
+    double start_temp = 20.0;
+    double end_temp = 0.01;
+    double temp = start_temp * std::pow(end_temp / start_temp, (double)(current_time - start_time) / time_limit);
+    return std::exp(-score_diff / temp);
 }
 
-std::vector<int> &move_subsequence(std::vector<int> &tour, const std::vector<std::vector<double>> &distances, const double &time_in_second)
+std::vector<int> &move_subsequence(std::vector<int> &tour, const std::vector<std::vector<double>> &distances, const double &time_limit)
 {
     int num_of_cities = distances.size();
 
     std::random_device seed_gen;
     std::mt19937 random_engine(seed_gen());
+    std::uniform_real_distribution<double> random_uniform(0, 1);
 
     // Choose two edges at random, and uncross them if they are crossed.
     std::time_t start = std::time(NULL);
-    while ((std::time(NULL) - start) < time_in_second)
+    while ((std::time(NULL) - start) < time_limit)
     {
         // Choose index1 and index2 at random.
         std::pair<int, int> indices = gen_random_indices(num_of_cities, random_engine);
         std::vector<int> main_tour, subsequence;
         cut_out_subsequence(tour, main_tour, subsequence, indices);
-        InsertPlace insert = get_place_to_insert_subsequence(main_tour, subsequence, distances);
-        tour = insert_subsequence(main_tour, subsequence, insert.index, insert.reverses);
+
+        for (int trial = 0; trial < 200; ++trial)
+        {
+            int insert_index = random_engine() % main_tour.size();
+            bool insert_reverses = random_engine() % 3; // True TODO
+
+            // Judge whether insert the subsequence or not.
+            double score_diff = get_score_diff(insert_index, insert_reverses, main_tour, subsequence, distances) - get_score_diff(indices.first, false, main_tour, subsequence, distances);
+            double transition_probability = get_transition_probability(start, time_limit, score_diff);
+            
+            if (random_uniform(random_engine) < transition_probability)
+            {
+                tour = insert_subsequence(main_tour, subsequence, insert_index, insert_reverses);
+                check_tour(tour, num_of_cities);
+                // std::cout << "Probability:" << transition_probability << std::endl;
+                // std::cout << "Renewed tour: " << get_score(tour, distances) << std::endl;
+                break;
+            }
+        }
     }
 
     assert(check_tour(tour, num_of_cities));
@@ -201,7 +202,7 @@ std::vector<int> &move_subsequence(std::vector<int> &tour, const std::vector<std
 }
 
 // Calculates the shortest tour to visit all the cities and return to the start.
-// |time_in_second|: Time to execute the function.
+// |time_limit|: Time to execute the function.
 // If the shortest tour is 0 -> 2 -> 1, returns std::vector{0, 2, 1}.
 std::vector<int> get_the_shortest_tour(const std::vector<std::vector<double>> &distances)
 {
@@ -210,10 +211,10 @@ std::vector<int> get_the_shortest_tour(const std::vector<std::vector<double>> &d
     // Apply greedy algorithm
     std::vector<int> shortest_tour = get_greedy_tour(distances);
     std::cout << "Score(greedy): " << get_score(shortest_tour, distances) << std::endl;
-    shortest_tour = two_opt(shortest_tour, distances, 300);
-    std::cout << "Score(two-opt): " << get_score(shortest_tour, distances) << std::endl;
-    shortest_tour = move_subsequence(shortest_tour, distances, 300);
+    shortest_tour = move_subsequence(shortest_tour, distances, 10);
     std::cout << "Score(final): " << get_score(shortest_tour, distances) << std::endl;
+    shortest_tour = two_opt(shortest_tour, distances, 10);
+    std::cout << "Score(two-opt): " << get_score(shortest_tour, distances) << std::endl;
 
     assert(check_tour(shortest_tour, num_of_cities));
     return shortest_tour;
