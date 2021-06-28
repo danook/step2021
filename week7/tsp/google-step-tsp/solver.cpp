@@ -154,9 +154,10 @@ std::vector<int> insert_subsequence(const std::vector<int> &main_tour, const std
 double get_transition_probability(const std::time_t &start_time, const double &time_limit, const double &score_diff)
 {
     std::time_t current_time = std::time(NULL);
-    double start_temp = 20.0;
+    double start_temp = 2.5;
     double end_temp = 0.01;
-    double temp = start_temp * std::pow(end_temp / start_temp, (double)(current_time - start_time) / time_limit);
+    // double temp = start_temp * std::pow(end_temp / start_temp, (double)(current_time - start_time) / time_limit);
+    double temp = start_temp + (end_temp - start_temp) * (double)(current_time - start_time) / time_limit;
     return std::exp(-score_diff / temp);
 }
 
@@ -177,23 +178,34 @@ std::vector<int> &move_subsequence(std::vector<int> &tour, const std::vector<std
         std::vector<int> main_tour, subsequence;
         cut_out_subsequence(tour, main_tour, subsequence, indices);
 
-        for (int trial = 0; trial < 200; ++trial)
+        for (int insert_index = 0; insert_index < main_tour.size(); ++insert_index)
         {
-            int insert_index = random_engine() % main_tour.size();
-            bool insert_reverses = random_engine() % 3; // True TODO
-
-            // Judge whether insert the subsequence or not.
-            double score_diff = get_score_diff(insert_index, insert_reverses, main_tour, subsequence, distances) - get_score_diff(indices.first, false, main_tour, subsequence, distances);
-            double transition_probability = get_transition_probability(start, time_limit, score_diff);
-            
-            if (random_uniform(random_engine) < transition_probability)
+            if (insert_index != indices.first)
             {
-                tour = insert_subsequence(main_tour, subsequence, insert_index, insert_reverses);
-                check_tour(tour, num_of_cities);
-                // std::cout << "Probability:" << transition_probability << std::endl;
-                // std::cout << "Renewed tour: " << get_score(tour, distances) << std::endl;
-                break;
+                for (int j = 0; j <= 1; ++j)
+                {
+                    // int insert_index = random_engine() % main_tour.size();
+                    bool insert_reverses = (j == 0);
+
+                    // Judge whether insert the subsequence or not.
+                    double score_diff = get_score_diff(insert_index, insert_reverses, main_tour, subsequence, distances) - get_score_diff(indices.first, false, main_tour, subsequence, distances);
+                    double transition_probability = get_transition_probability(start, time_limit, score_diff);
+
+                    if (random_uniform(random_engine) < transition_probability)
+                    {
+                        tour = insert_subsequence(main_tour, subsequence, insert_index, insert_reverses);
+                        check_tour(tour, num_of_cities);
+                        // std::cout << "Probability:" << transition_probability << std::endl;
+                        // std::cout << "Renewed tour: " << get_score(tour, distances) << std::endl;
+                        break;
+                    }
+                }
             }
+        }
+
+        if (random_engine() % 10000 == 0)
+        {
+            std::cout << "Score(final): " << get_score(tour, distances) << std::endl;
         }
     }
 
@@ -211,10 +223,10 @@ std::vector<int> get_the_shortest_tour(const std::vector<std::vector<double>> &d
     // Apply greedy algorithm
     std::vector<int> shortest_tour = get_greedy_tour(distances);
     std::cout << "Score(greedy): " << get_score(shortest_tour, distances) << std::endl;
-    shortest_tour = move_subsequence(shortest_tour, distances, 10);
-    std::cout << "Score(final): " << get_score(shortest_tour, distances) << std::endl;
     shortest_tour = two_opt(shortest_tour, distances, 10);
     std::cout << "Score(two-opt): " << get_score(shortest_tour, distances) << std::endl;
+    shortest_tour = move_subsequence(shortest_tour, distances, 1800);
+    std::cout << "Score(final): " << get_score(shortest_tour, distances) << std::endl;
 
     assert(check_tour(shortest_tour, num_of_cities));
     return shortest_tour;
