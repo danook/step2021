@@ -59,29 +59,29 @@ solver.exe (input_file_name) (output_file_name)
 input_6, input_7についてのみ行った。
 
 ### input_6.csv (2048 cities)
-two-opt: 5 sec.
-move 1800 sec.
-start_temp = 2.75
-end_temp = 0.05
+two-opt: 5 sec.  
+move: 1800 sec.  
+start_temp = 2.75  
+end_temp = 0.05  
 
 としたところ、
 
-Score(greedy): 48637.1
-Score(two-opt): 41946.9
-Score(final): 40687.9
+Score(greedy): 48637.1  
+Score(two-opt): 41946.9  
+Score(final): 40687.9  
 
 
 ### input_7.csv (8192 cities)
-two-opt: 120 sec.
-move 7200 sec.
-start_temp = 1.75
-end_temp = 0.05
+two-opt: 120 sec.  
+move: 7200 sec.  
+start_temp = 1.75  
+end_temp = 0.05  
 
 としたところ、
 
-Score(greedy): 95983.3
-Score(two-opt): 84636
-Score(final): 83887.9
+Score(greedy): 95983.3  
+Score(two-opt): 84636  
+Score(final): 83887.9  
 
 となった。
 
