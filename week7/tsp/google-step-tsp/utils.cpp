@@ -48,7 +48,7 @@ void print_tour(const std::string &filename, const std::vector<int> &tour)
     return;
 }
 
-// Check if every city is in |tour| once.
+// Checks if every city is in |tour| exactly once.
 bool check_tour(std::vector<int> tour, const int &num_of_cities)
 {
     if (tour.size() != num_of_cities)
@@ -92,6 +92,8 @@ double get_score(const std::vector<int> &tour, const std::vector<std::vector<dou
     return score;
 }
 
+// Generates two random integers in [0, num_of_cities).
+// The first integer is smaller than the second one.
 std::pair<int, int> gen_random_indices(const int &num_of_cities, std::mt19937 &random_engine)
 {
     int index1, index2;
